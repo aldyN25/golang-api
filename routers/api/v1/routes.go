@@ -6,27 +6,31 @@ import (
 	"github.com/aldyN25/go-fiber-rest/app/controllers/exception"
 	noteController "github.com/aldyN25/go-fiber-rest/app/controllers/note"
 	userController "github.com/aldyN25/go-fiber-rest/app/controllers/user"
+	middleware "github.com/aldyN25/go-fiber-rest/pkg/jwt"
 	"github.com/gofiber/fiber/v2"
 	jwtware "github.com/gofiber/jwt/v3"
 )
 
 func ApiRoutes(app *fiber.App) {
-	route := app.Group("/api/v1")
+	router := app.Group("/api/v1")
 
-	route.Post("/auth/login", authController.Login)
-	route.Post("/auth/register", authController.Register)
+	router.Post("/auth/login", authController.Login)
+	router.Post("/auth/register", authController.Register)
 
-	route = route.Group("/", jwtware.New(jwtware.Config{
+	router = router.Group("/", jwtware.New(jwtware.Config{
 		SigningKey:   []byte(configs.GetInstance().Jwtconfig.Secret),
 		ErrorHandler: exception.ExceptionNotFound,
 	}))
 
-	route.Get("/notes", noteController.GetAllNotes)
-	route.Post("/notes", noteController.CreateNote)
-	route.Get("/notes/:id", noteController.GetNoteById)
-	route.Put("/notes/:id", noteController.UpdateNote)
-	route.Delete("/notes/:id", noteController.DeleteNote)
+	notes := router.Group("/notes", middleware.TokenVerify())
 
-	route.Post("/users", userController.CreateUser)
-	route.Get("/users", userController.GetAllUsers)
+	notes.Get("/", noteController.GetAllNotes)
+	notes.Post("/", noteController.CreateNote)
+	notes.Get("/:id", noteController.GetNoteById)
+	notes.Put("/:id", noteController.UpdateNote)
+	notes.Delete("/:id", noteController.DeleteNote)
+
+	users := router.Group("/users", middleware.TokenVerify())
+	users.Post("/", userController.CreateUser)
+	users.Get("/", userController.GetAllUsers)
 }
